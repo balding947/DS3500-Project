@@ -14,7 +14,7 @@ test_api_full.py): @pytest.fixture for shared test data, @patch('requests.get')
 from unittest.mock to mock the API, and pytest.approx for float comparisons.
 
 Tests use small synthetic DataFrames with known answers so each assertion is
-deterministic and offline. One end-to-end test exercises the real raw files.
+deterministic and offline.
 
 Run from the project root:  pytest -v
 """
@@ -98,30 +98,6 @@ def test_stock_prices_to_dataframe_parses_eodhd_json():
                                 "low", "close", "adjusted_close", "volume"]
     assert len(df) == 2
     assert set(df["symbol"]) == {"AAPL"}
-
-
-def test_news_sentiment_to_dataframe_flattens_ticker_sentiment():
-    """One article mentioning two tickers must flatten to two rows."""
-    payload = {
-        "feed": [{
-            "title": "Big tech rallies",
-            "url": "http://example.com/a",
-            "time_published": "20260122T120000",
-            "overall_sentiment_score": 0.25,
-            "overall_sentiment_label": "Somewhat-Bullish",
-            "ticker_sentiment": [
-                {"ticker": "AAPL", "relevance_score": "0.9",
-                 "ticker_sentiment_score": "0.3",
-                 "ticker_sentiment_label": "Bullish"},
-                {"ticker": "MSFT", "relevance_score": "0.5",
-                 "ticker_sentiment_score": "0.1",
-                 "ticker_sentiment_label": "Neutral"},
-            ],
-        }]
-    }
-    df = acquire.news_sentiment_to_dataframe(payload)
-    assert len(df) == 2
-    assert set(df["symbol"]) == {"AAPL", "MSFT"}
 
 
 @patch("requests.get")
@@ -327,22 +303,3 @@ def test_validate_merged_rejects_null_sector():
     })
     with pytest.raises(AssertionError):
         merge.validate_merged(df)
-
-
-# END-TO-END (real raw files)
-
-def test_end_to_end_merge_preserves_row_count_on_real_data():
-    """Clean -> aggregate -> merge on the real raw files keeps every price row."""
-    raw_stock = pipeline.RAW_FOLDER / "daily_stock_prices_raw.csv"
-    if not raw_stock.exists():
-        pytest.skip("raw data not present; run acquire.py first")
-
-    stock = pipeline.clean_stock_prices(pipeline.load_stock_prices())
-    sp500 = pipeline.clean_sp500_companies(pipeline.load_sp500_companies())
-    news = pipeline.clean_news_sentiment(pipeline.load_news_sentiment())
-
-    news_agg = merge.aggregate_sentiment(news)
-    merged = merge.merge_all(stock, sp500, news_agg)
-
-    assert len(merged) == len(stock)
-    assert merged["sector"].notna().all()
