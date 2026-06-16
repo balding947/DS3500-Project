@@ -1,61 +1,44 @@
 import json
-import os
 import time
 from pathlib import Path
+from datetime import datetime, timedelta
+
 import pandas as pd
 import requests
-from dotenv import load_dotenv
-load_dotenv()
 
-# API 1
-FINNHUB_URL = "https://finnhub.io/api/v1"
-
-def fetch_finnhub_stock_prices(symbol):
-    """fetch stock quote from finnhub"""
-    params = {
-        "symbol": symbol,
-        "token": "d8on089r01qn89hsarlgd8on089r01qn89hsarm0",
-    }
-
-    response = requests.get(f"{FINNHUB_URL}/quote", params=params, timeout=30)
-    response.raise_for_status()
-
-    data = response.json()
-
-    raw_path = RAW_FOLDER / f"{symbol}_finnhub_quote_raw.json"
-    save_json(data, raw_path)
-
-    return data
-
-
-def finnhub_stock_prices_to_dataframe(data, symbol):
-    """convert finnhub quote response to a dataframe"""
-    df = pd.DataFrame([{
-        "symbol": symbol,
-        "current_price": data.get("c"),
-        "high": data.get("h"),
-        "low": data.get("l"),
-        "open": data.get("o"),
-        "prev_close": data.get("pc"),
-    }])
-    return df
-
-# API 2
+# URLs
+EODHD_URL = "https://eodhd.com/api/eod"
 ALPHA_VANTAGE_URL = "https://www.alphavantage.co/query"
 SP500_CSV_URL = (
     "https://raw.githubusercontent.com/datasets/s-and-p-500-companies/"
     "main/data/constituents.csv"
 )
 
-TICKERS = ["AAPL"]
+# API keys
+EODHD_API_KEY = "6a317af06eb7b9.36941470"
+ALPHAVANTAGE_API_KEY = "0GLNRG85M5LFDBXB"
+
+# Settings
+TICKERS = [
+    "AAPL",   # Apple
+    "MSFT",   # Microsoft
+    "NVDA",   # Nvidia
+    "AMZN",   # Amazon
+    "GOOGL",  # Alphabet
+    "META",   # Meta
+    "TSLA",   # Tesla
+    "AVGO",   # Broadcom
+    "JPM",    # JPMorgan Chase
+    "WMT",    # Walmart
+]
+START_DATE = "2026-01-22"
+
 RAW_FOLDER = Path("data/raw")
 SAMPLE_FOLDER = Path("data/sample")
+
 RAW_FOLDER.mkdir(parents=True, exist_ok=True)
 SAMPLE_FOLDER.mkdir(parents=True, exist_ok=True)
 
-def get_api_key():
-    """get alpha vantage api key from env variable"""
-    return "0GLNRG85M5LFDBXB"
 
 def save_json(data, file_path):
     """save dictionary data as a json file"""
@@ -64,77 +47,122 @@ def save_json(data, file_path):
 
     print(f"Saved: {file_path}")
 
+
+# API 1: EODHD daily stock prices
 def fetch_daily_stock_prices(symbol):
-    """fetch daily stock prices from alpha vantage"""
+    """fetch daily stock prices from EODHD starting Jan 22 2026"""
+
+    eodhd_symbol = f"{symbol}.US"
+
     params = {
-        "function": "TIME_SERIES_DAILY",
-        "symbol": symbol,
-        "outputsize": "compact",
-        "apikey": get_api_key(),
+        "api_token": EODHD_API_KEY,
+        "fmt": "json",
+        "from": START_DATE,
+        "to": datetime.now().strftime("%Y-%m-%d"),
     }
 
-    response = requests.get(ALPHA_VANTAGE_URL, params=params, timeout=30)
+    response = requests.get(
+        f"{EODHD_URL}/{eodhd_symbol}",
+        params=params,
+        timeout=30,
+    )
+
     response.raise_for_status()
 
     data = response.json()
 
-    raw_path = RAW_FOLDER / f"{symbol}_daily_stock_prices_raw.json"
-    save_json(data, raw_path)
-
     return data
 
 
-def stock_prices_to_dataframe(data):
-    """convert alpha vantage daily stock prices json to a dataframe"""
-    metadata = data.get("Meta Data", {})
-    symbol = metadata.get("2. Symbol")
-
-    time_series = data.get("Time Series (Daily)", {})
+def stock_prices_to_dataframe(data, symbol):
+    """convert EODHD stock price data to a dataframe"""
 
     rows = []
 
-    for date, values in time_series.items():
+    for item in data:
         row = {
-            "date": date,
+            "date": item.get("date"),
             "symbol": symbol,
-            "open": values.get("1. open"),
-            "high": values.get("2. high"),
-            "low": values.get("3. low"),
-            "close": values.get("4. close"),
-            "volume": values.get("5. volume"),
+            "open": item.get("open"),
+            "high": item.get("high"),
+            "low": item.get("low"),
+            "close": item.get("close"),
+            "adjusted_close": item.get("adjusted_close"),
+            "volume": item.get("volume"),
         }
 
         rows.append(row)
 
-    df = pd.DataFrame(rows)
-
-    return df
+    return pd.DataFrame(rows)
 
 
+# API 2: Alpha Vantage news sentiment
 def fetch_news_sentiment(tickers):
-    """fetch news sentiment data for one or more tickers from alpha vantage"""
+    """fetch news sentiment data from Alpha Vantage from Jan 22 2026 to today"""
+
     ticker_string = ",".join(tickers)
 
-    params = {
-        "function": "NEWS_SENTIMENT",
-        "tickers": ticker_string,
-        "limit": 50,
-        "apikey": get_api_key(),
+    start_date = datetime.strptime("2026-01-22", "%Y-%m-%d")
+    end_date = datetime.now()
+
+    all_articles = []
+    seen_urls = set()
+
+    current_start = start_date
+
+    while current_start <= end_date:
+        current_end = current_start + timedelta(days=13)
+
+        if current_end > end_date:
+            current_end = end_date
+
+        time_from = current_start.strftime("%Y%m%dT0000")
+        time_to = current_end.strftime("%Y%m%dT2359")
+
+        print(f"Fetching news from {time_from} to {time_to}...")
+
+        params = {
+            "function": "NEWS_SENTIMENT",
+            "tickers": ticker_string,
+            "time_from": time_from,
+            "time_to": time_to,
+            "sort": "EARLIEST",
+            "limit": 1000,
+            "apikey": ALPHAVANTAGE_API_KEY,
+        }
+
+        response = requests.get(ALPHA_VANTAGE_URL, params=params, timeout=30)
+        response.raise_for_status()
+
+        data = response.json()
+        feed = data.get("feed", [])
+
+        print(f"Articles returned: {len(feed)}")
+
+        for article in feed:
+            article_url = article.get("url")
+
+            if article_url not in seen_urls:
+                all_articles.append(article)
+                seen_urls.add(article_url)
+
+        current_start = current_end + timedelta(days=1)
+
+        time.sleep(2)
+
+    combined_data = {
+        "items": str(len(all_articles)),
+        "feed": all_articles,
     }
 
-    response = requests.get(ALPHA_VANTAGE_URL, params=params, timeout=30)
-    response.raise_for_status()
-
-    data = response.json()
-
     raw_path = RAW_FOLDER / "news_sentiment_raw.json"
-    save_json(data, raw_path)
+    save_json(combined_data, raw_path)
 
-    return data
+    return combined_data
 
 
 def news_sentiment_to_dataframe(data):
-    """convert alpha vantage news sentiment json to a df"""
+    """convert Alpha Vantage news sentiment json to a dataframe"""
 
     feed = data.get("feed", [])
 
@@ -174,26 +202,30 @@ def news_sentiment_to_dataframe(data):
 
             rows.append(row)
 
-    df = pd.DataFrame(rows)
+    return pd.DataFrame(rows)
 
-    return df
 
+# Static source: S&P 500 companies CSV
 def fetch_sp500_companies():
     """load the S&P 500 companies static CSV"""
+
     df = pd.read_csv(SP500_CSV_URL)
 
     raw_path = RAW_FOLDER / "sp500_companies_raw.csv"
     df.to_csv(raw_path, index=False)
+    print(f"Saved: {raw_path}")
 
     return df
+
 
 def acquire_all_sources():
     stock_frames = []
 
     for ticker in TICKERS:
-        print(f"\nFetching daily stock prices for {ticker}...")
+        print(f"\nFetching daily stock prices from EODHD for {ticker}...")
+
         raw_stock_data = fetch_daily_stock_prices(ticker)
-        stock_df = stock_prices_to_dataframe(raw_stock_data)
+        stock_df = stock_prices_to_dataframe(raw_stock_data, ticker)
 
         if not stock_df.empty:
             stock_frames.append(stock_df)
@@ -205,11 +237,15 @@ def acquire_all_sources():
     else:
         all_stock_prices = pd.DataFrame()
 
+    stock_raw_path = RAW_FOLDER / "daily_stock_prices_raw.csv"
+    all_stock_prices.to_csv(stock_raw_path, index=False)
+    print(f"Saved: {stock_raw_path}")
+
     stock_sample_path = SAMPLE_FOLDER / "daily_stock_prices_sample.csv"
     all_stock_prices.head(100).to_csv(stock_sample_path, index=False)
     print(f"Saved: {stock_sample_path}")
 
-    print("\nFetching news sentiment data...")
+    print("\nFetching news sentiment data from Alpha Vantage...")
     raw_news_data = fetch_news_sentiment(TICKERS)
     news_df = news_sentiment_to_dataframe(raw_news_data)
 
@@ -223,21 +259,6 @@ def acquire_all_sources():
     sp500_sample_path = SAMPLE_FOLDER / "sp500_companies_sample.csv"
     sp500_df.head(100).to_csv(sp500_sample_path, index=False)
     print(f"Saved: {sp500_sample_path}")
-
-    print("\nFetching Finnhub stock prices...")
-    finnhub_frames = []
-    for ticker in TICKERS:
-        raw_finnhub_data = fetch_finnhub_stock_prices(ticker)
-        finnhub_df = finnhub_stock_prices_to_dataframe(raw_finnhub_data, ticker)
-        if not finnhub_df.empty:
-            finnhub_frames.append(finnhub_df)
-        time.sleep(1)
-
-    if finnhub_frames:
-        all_finnhub_prices = pd.concat(finnhub_frames, ignore_index=True)
-        finnhub_sample_path = SAMPLE_FOLDER / "finnhub_stock_prices_sample.csv"
-        all_finnhub_prices.head(100).to_csv(finnhub_sample_path, index=False)
-        print(f"Saved: {finnhub_sample_path}")
 
 
 def main():
