@@ -39,6 +39,13 @@ SAMPLE_FOLDER = Path("data/sample")
 RAW_FOLDER.mkdir(parents=True, exist_ok=True)
 SAMPLE_FOLDER.mkdir(parents=True, exist_ok=True)
 
+STOCK_RAW_PATH = RAW_FOLDER / "daily_stock_prices_raw.csv"
+NEWS_RAW_PATH = RAW_FOLDER / "news_sentiment_raw.json"
+
+STOCK_SAMPLE_PATH = SAMPLE_FOLDER / "daily_stock_prices_sample.csv"
+NEWS_SAMPLE_PATH = SAMPLE_FOLDER / "news_sentiment_sample.csv"
+SP500_SAMPLE_PATH = SAMPLE_FOLDER / "sp500_companies_sample.csv"
+
 
 def save_json(data, file_path):
     """save dictionary data as a json file"""
@@ -46,6 +53,11 @@ def save_json(data, file_path):
         json.dump(data, file, indent=4)
 
     print(f"Saved: {file_path}")
+
+def load_json(file_path):
+    """load json data from a file"""
+    with open(file_path, "r", encoding="utf-8") as file:
+        return json.load(file)
 
 
 # API 1: EODHD daily stock prices
@@ -219,46 +231,60 @@ def fetch_sp500_companies():
 
 
 def acquire_all_sources():
-    stock_frames = []
+    # API 1: EODHD daily stock prices
+    if STOCK_RAW_PATH.exists():
+        print(f"\nFound existing file: {STOCK_RAW_PATH}")
+        print("Skipping EODHD API call to avoid rate limits.")
 
-    for ticker in TICKERS:
-        print(f"\nFetching daily stock prices from EODHD for {ticker}...")
+        all_stock_prices = pd.read_csv(STOCK_RAW_PATH)
 
-        raw_stock_data = fetch_daily_stock_prices(ticker)
-        stock_df = stock_prices_to_dataframe(raw_stock_data, ticker)
-
-        if not stock_df.empty:
-            stock_frames.append(stock_df)
-
-        time.sleep(2)
-
-    if stock_frames:
-        all_stock_prices = pd.concat(stock_frames, ignore_index=True)
     else:
-        all_stock_prices = pd.DataFrame()
+        stock_frames = []
 
-    stock_raw_path = RAW_FOLDER / "daily_stock_prices_raw.csv"
-    all_stock_prices.to_csv(stock_raw_path, index=False)
-    print(f"Saved: {stock_raw_path}")
+        for ticker in TICKERS:
+            print(f"\nFetching daily stock prices from EODHD for {ticker}...")
 
-    stock_sample_path = SAMPLE_FOLDER / "daily_stock_prices_sample.csv"
-    all_stock_prices.head(100).to_csv(stock_sample_path, index=False)
-    print(f"Saved: {stock_sample_path}")
+            raw_stock_data = fetch_daily_stock_prices(ticker)
+            stock_df = stock_prices_to_dataframe(raw_stock_data, ticker)
 
-    print("\nFetching news sentiment data from Alpha Vantage...")
-    raw_news_data = fetch_news_sentiment(TICKERS)
+            if not stock_df.empty:
+                stock_frames.append(stock_df)
+
+            time.sleep(2)
+
+        if stock_frames:
+            all_stock_prices = pd.concat(stock_frames, ignore_index=True)
+        else:
+            all_stock_prices = pd.DataFrame()
+
+        all_stock_prices.to_csv(STOCK_RAW_PATH, index=False)
+        print(f"Saved: {STOCK_RAW_PATH}")
+
+    all_stock_prices.head(100).to_csv(STOCK_SAMPLE_PATH, index=False)
+    print(f"Saved: {STOCK_SAMPLE_PATH}")
+
+    # API 2: Alpha Vantage news sentiment
+    if NEWS_RAW_PATH.exists():
+        print(f"\nFound existing file: {NEWS_RAW_PATH}")
+        print("Skipping Alpha Vantage API call to avoid rate limits.")
+
+        raw_news_data = load_json(NEWS_RAW_PATH)
+
+    else:
+        print("\nFetching news sentiment data from Alpha Vantage...")
+        raw_news_data = fetch_news_sentiment(TICKERS)
+
     news_df = news_sentiment_to_dataframe(raw_news_data)
 
-    news_sample_path = SAMPLE_FOLDER / "news_sentiment_sample.csv"
-    news_df.head(100).to_csv(news_sample_path, index=False)
-    print(f"Saved: {news_sample_path}")
+    news_df.head(100).to_csv(NEWS_SAMPLE_PATH, index=False)
+    print(f"Saved: {NEWS_SAMPLE_PATH}")
 
+    # Static source: S&P 500 company metadata
     print("\nFetching S&P 500 company metadata...")
     sp500_df = fetch_sp500_companies()
 
-    sp500_sample_path = SAMPLE_FOLDER / "sp500_companies_sample.csv"
-    sp500_df.head(100).to_csv(sp500_sample_path, index=False)
-    print(f"Saved: {sp500_sample_path}")
+    sp500_df.head(100).to_csv(SP500_SAMPLE_PATH, index=False)
+    print(f"Saved: {SP500_SAMPLE_PATH}")
 
 
 def main():
