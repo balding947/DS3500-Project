@@ -4,7 +4,43 @@ import time
 from pathlib import Path
 import pandas as pd
 import requests
+from dotenv import load_dotenv
+load_dotenv()
 
+# API 1
+FINNHUB_URL = "https://finnhub.io/api/v1"
+
+def fetch_finnhub_stock_prices(symbol):
+    """fetch stock quote from finnhub"""
+    params = {
+        "symbol": symbol,
+        "token": os.getenv("FINNHUB_API_KEY"),
+    }
+
+    response = requests.get(f"{FINNHUB_URL}/quote", params=params, timeout=30)
+    response.raise_for_status()
+
+    data = response.json()
+
+    raw_path = RAW_FOLDER / f"{symbol}_finnhub_quote_raw.json"
+    save_json(data, raw_path)
+
+    return data
+
+
+def finnhub_stock_prices_to_dataframe(data, symbol):
+    """convert finnhub quote response to a dataframe"""
+    df = pd.DataFrame([{
+        "symbol": symbol,
+        "current_price": data.get("c"),
+        "high": data.get("h"),
+        "low": data.get("l"),
+        "open": data.get("o"),
+        "prev_close": data.get("pc"),
+    }])
+    return df
+
+# API 2
 ALPHA_VANTAGE_URL = "https://www.alphavantage.co/query"
 SP500_CSV_URL = (
     "https://raw.githubusercontent.com/datasets/s-and-p-500-companies/"
@@ -196,6 +232,21 @@ def acquire_all_sources():
     sp500_sample_path = SAMPLE_FOLDER / "sp500_companies_sample.csv"
     sp500_df.head(100).to_csv(sp500_sample_path, index=False)
     print(f"Saved: {sp500_sample_path}")
+
+    print("\nFetching Finnhub stock prices...")
+    finnhub_frames = []
+    for ticker in TICKERS:
+        raw_finnhub_data = fetch_finnhub_stock_prices(ticker)
+        finnhub_df = finnhub_stock_prices_to_dataframe(raw_finnhub_data, ticker)
+        if not finnhub_df.empty:
+            finnhub_frames.append(finnhub_df)
+        time.sleep(1)
+
+    if finnhub_frames:
+        all_finnhub_prices = pd.concat(finnhub_frames, ignore_index=True)
+        finnhub_sample_path = SAMPLE_FOLDER / "finnhub_stock_prices_sample.csv"
+        all_finnhub_prices.head(100).to_csv(finnhub_sample_path, index=False)
+        print(f"Saved: {finnhub_sample_path}")
 
 
 def main():
