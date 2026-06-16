@@ -14,7 +14,7 @@ def fetch_finnhub_stock_prices(symbol):
     """fetch stock quote from finnhub"""
     params = {
         "symbol": symbol,
-        "token": os.getenv("FINNHUB_API_KEY"),
+        "token": "d8on089r01qn89hsarlgd8on089r01qn89hsarm0",
     }
 
     response = requests.get(f"{FINNHUB_URL}/quote", params=params, timeout=30)
@@ -55,16 +55,7 @@ SAMPLE_FOLDER.mkdir(parents=True, exist_ok=True)
 
 def get_api_key():
     """get alpha vantage api key from env variable"""
-    api_key = os.getenv("ALPHAVANTAGE_API_KEY")
-
-    if not api_key:
-        raise ValueError(
-            "Missing Alpha Vantage API key.\n"
-            "Set it in PowerShell using:\n"
-            '$env:ALPHAVANTAGE_API_KEY="your_api_key_here"'
-        )
-
-    return api_key
+    return "0GLNRG85M5LFDBXB"
 
 def save_json(data, file_path):
     """save dictionary data as a json file"""
