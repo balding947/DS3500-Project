@@ -50,10 +50,10 @@ def make_candlestick_chart(df, ticker):
     if d.empty:
         return _no_data_fig(f"Candlestick — {ticker}")
 
-    has_sentiment = not d["sentiment_score_mean"].isna().all()
+    has_sentiment = not d["ticker_sentiment_mean"].isna().all()
     rows = 3 if has_sentiment else 2
     row_heights = [0.6, 0.2, 0.2] if has_sentiment else [0.7, 0.3]
-    subplot_titles = (ticker, "Volume", "Sentiment") if has_sentiment else (ticker, "Volume")
+    subplot_titles = (ticker, "Volume", "Ticker Sentiment") if has_sentiment else (ticker, "Volume")
 
     fig = make_subplots(
         rows=rows, cols=1,
@@ -79,9 +79,10 @@ def make_candlestick_chart(df, ticker):
 
     if has_sentiment:
         fig.add_trace(go.Scatter(
-            x=d["date"], y=d["sentiment_score_mean"],
-            mode="lines+markers", name="Sentiment",
+            x=d["date"], y=d["ticker_sentiment_mean"],
+            mode="lines+markers", name="Ticker Sentiment",
             line=dict(color="#ff9800", width=2), marker=dict(size=5),
+            connectgaps=True,
         ), row=3, col=1)
         fig.add_hline(y=0, line_dash="dash", line_color="gray", opacity=0.4, row=3, col=1)
 

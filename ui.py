@@ -41,6 +41,11 @@ date_player = pn.widgets.Player(
     step=1,
     interval=600,
     loop_policy="once",
+    show_loop_controls=False,
+    show_value=False,
+    height=90,
+    sizing_mode="stretch_width",
+    margin=(10, 10),
 )
 
 reset_btn = pn.widgets.Button(name="Reset All Filters", button_type="warning")
