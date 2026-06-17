@@ -1,3 +1,4 @@
+import os
 import json
 import time
 from pathlib import Path
@@ -5,6 +6,7 @@ from datetime import datetime, timedelta
 
 import pandas as pd
 import requests
+from dotenv import load_dotenv
 
 # URLs
 EODHD_URL = "https://eodhd.com/api/eod"
@@ -14,9 +16,10 @@ SP500_CSV_URL = (
     "main/data/constituents.csv"
 )
 
-# API keys
-EODHD_API_KEY = "6a317af06eb7b9.36941470"
-ALPHAVANTAGE_API_KEY = "0GLNRG85M5LFDBXB"
+# API keys 
+load_dotenv()
+EODHD_API_KEY = os.getenv("EODHD_API_KEY")
+ALPHAVANTAGE_API_KEY = os.getenv("ALPHAVANTAGE_API_KEY")
 
 # Settings
 TICKERS = [
