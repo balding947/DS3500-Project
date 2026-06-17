@@ -1,3 +1,4 @@
+# Plotly chart functions — normalized line, candlestick, animated risk/return scatter, and rolling volatility
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go

@@ -1,23 +1,4 @@
-"""
-pytest test suite for the stock-market data pipeline.
-
-Covers the four areas required by Milestone 2:
-
-  1. Data loading & API access  -> acquire.fetch_*, acquire.*_to_dataframe,
-                                   pipeline.load_*
-  2. Cleaning functions         -> pipeline.clean_*
-  3. Merge logic                -> merge.aggregate_sentiment, merge.merge_all
-  4. Data validation            -> pipeline.validate_*, merge.validate_merged
-
-Style follows the course testing conventions (see ds3500_sum26/code/
-test_api_full.py): @pytest.fixture for shared test data, @patch('requests.get')
-from unittest.mock to mock the API, and pytest.approx for float comparisons.
-
-Tests use small synthetic DataFrames with known answers so each assertion is
-deterministic and offline.
-
-Run from the project root:  pytest -v
-"""
+# pytest suite — 17 tests covering data loading, cleaning, merge logic, and validation (all offline with synthetic fixtures)
 
 import json
 from unittest.mock import patch

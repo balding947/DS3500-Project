@@ -1,3 +1,6 @@
+"""fetches raw stock prices (EODHD), news sentiment (Alpha Vantage), and S&P 500 companies (CSV) into data/raw/"""
+
+
 import os
 import json
 import time

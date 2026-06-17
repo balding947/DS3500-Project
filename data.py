@@ -1,3 +1,5 @@
+"""loads the merged dataset and provides filtering and metric computation helpers"""
+
 import pandas as pd
 from pathlib import Path
 

@@ -1,3 +1,4 @@
+# Panel dashboard — widgets, filters, dynamic sidebar, and FastListTemplate layout
 import panel as pn
 import data
 import visualization as viz
