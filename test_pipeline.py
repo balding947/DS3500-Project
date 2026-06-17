@@ -21,6 +21,7 @@ def make_stock_raw(rows):
     return pd.DataFrame(rows, columns=cols)
 
 
+
 def make_sp500_raw(rows):
     """Build a raw S&P 500 frame with the original (pre-rename) column headers."""
     cols = ["Symbol", "Security", "GICS Sector", "GICS Sub-Industry",

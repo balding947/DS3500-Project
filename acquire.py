@@ -93,7 +93,7 @@ def fetch_daily_stock_prices(symbol):
 
 
 def stock_prices_to_dataframe(data, symbol):
-    """convert EODHD stock price data to a dataframe"""
+    """convert EODHD stock price data into a dataframe"""
 
     rows = []
 
