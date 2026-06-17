@@ -7,6 +7,7 @@ import panel as pn
 import data
 
 
+
 def _no_data_fig(title):
     fig = go.Figure()
     fig.add_annotation(

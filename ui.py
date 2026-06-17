@@ -40,8 +40,8 @@ date_player = pn.widgets.Player(
     end=len(_anim_dates) - 1,
     value=0,
     step=1,
-    interval=600,
-    loop_policy="once",
+    interval=300,
+    loop_policy="loop",
     show_loop_controls=False,
     show_value=False,
     height=90,
@@ -150,7 +150,7 @@ sidebar_reactive = pn.bind(make_sidebar, tabs.param.active)
 
 # dashboard layout
 layout = pn.template.FastListTemplate(
-    title="S&P 500 Market Dashboard — Samuel Yao",
+    title="S&P 500 Market Dashboard",
     sidebar=[pn.Column(sidebar_reactive)],
     main=[pn.Column(
         pn.pane.Markdown("## Key Metrics", margin=(12, 0, 4, 12)),
