@@ -54,6 +54,7 @@ def make_stock_raw(rows):
     return pd.DataFrame(rows, columns=cols)
 
 
+
 def make_sp500_raw(rows):
     """Build a RAW S&P 500 frame with the original GICS headers (pre-rename).
 

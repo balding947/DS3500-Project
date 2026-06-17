@@ -7,8 +7,8 @@ import panel as pn
 import data
 
 
-
 def _no_data_fig(title):
+    # placeholder chart shown when filters return no rows
     fig = go.Figure()
     fig.add_annotation(
         text="No data for selected filters",
@@ -19,12 +19,14 @@ def _no_data_fig(title):
     return pn.pane.Plotly(fig)
 
 
-# viz 1 — high-level overview: all stocks indexed to 100
+# Viz 1:  Relative Stock Performance (Overview tab)
+# All tickers indexed to 100 at the start of the selected period so returns are comparable
 def make_normalized_line_chart(df):
     if df.empty:
         return _no_data_fig("Relative Stock Performance")
 
     d = df.copy()
+    # divide each price by the first price in the window, multiply by 100 → index starts at 100
     d["indexed"] = d.groupby("symbol")["adjusted_close"].transform(
         lambda x: x / x.iloc[0] * 100
     )
@@ -40,23 +42,27 @@ def make_normalized_line_chart(df):
         color_discrete_sequence=px.colors.qualitative.Bold,
     )
     fig.add_hline(y=100, line_dash="dash", line_color="gray", opacity=0.4,
-                  annotation_text="Baseline (100)")
+                  annotation_text="Baseline (100)")  # reference line at starting value
     fig.update_layout(height=520, hovermode="x unified", legend_title="Ticker")
     return pn.pane.Plotly(fig)
 
 
-# viz 2 — drill-down: candlestick + volume + sentiment for one stock
+# Viz 2: Candlestick Drill-Down (Stock Drill-Down tab)
+# Three stacked subplots: OHLC candles, volume bars, and sentiment line
+
 def make_candlestick_chart(df, ticker):
     d = df[df["symbol"] == ticker].copy()
 
     if d.empty:
         return _no_data_fig(f"Candlestick — {ticker}")
 
+    # only show sentiment subplot if the data actually has sentiment values
     has_sentiment = not d["ticker_sentiment_mean"].isna().all()
     rows = 3 if has_sentiment else 2
     row_heights = [0.6, 0.2, 0.2] if has_sentiment else [0.7, 0.3]
     subplot_titles = (ticker, "Volume", "Ticker Sentiment") if has_sentiment else (ticker, "Volume")
 
+    # shared x-axis so zooming/panning on one subplot applies to all
     fig = make_subplots(
         rows=rows, cols=1,
         shared_xaxes=True,
@@ -65,6 +71,7 @@ def make_candlestick_chart(df, ticker):
         subplot_titles=subplot_titles,
     )
 
+    # row 1 — OHLC candlestick
     fig.add_trace(go.Candlestick(
         x=d["date"], open=d["open"], high=d["high"],
         low=d["low"], close=d["close"],
@@ -73,18 +80,20 @@ def make_candlestick_chart(df, ticker):
         decreasing_line_color="#ef5350",
     ), row=1, col=1)
 
+    # row 2 — volume bars colored green/red based on daily return direction
     bar_colors = ["#26a69a" if r >= 0 else "#ef5350" for r in d["daily_return"].fillna(0)]
     fig.add_trace(go.Bar(
         x=d["date"], y=d["volume"],
         name="Volume", marker_color=bar_colors, showlegend=False,
     ), row=2, col=1)
 
+    # row 3 — ticker sentiment score over time (only rendered if sentiment data exists)
     if has_sentiment:
         fig.add_trace(go.Scatter(
             x=d["date"], y=d["ticker_sentiment_mean"],
             mode="lines+markers", name="Ticker Sentiment",
             line=dict(color="#ff9800", width=2), marker=dict(size=5),
-            connectgaps=True,
+            connectgaps=True,  # draw through NaN gaps so line stays continuous
         ), row=3, col=1)
         fig.add_hline(y=0, line_dash="dash", line_color="gray", opacity=0.4, row=3, col=1)
 
@@ -97,24 +106,28 @@ def make_candlestick_chart(df, ticker):
     return pn.pane.Plotly(fig)
 
 
-# viz 3 — animated: risk vs return scatter (Panel Player drives animation)
+# --- Viz 3 — Animated Risk vs Return Scatter (Risk/Return Anim. tab) ---
+# Each call renders one frame; the Panel Player widget increments frame_idx to animate
 def make_animated_scatter(df, frame_idx):
     cum = data.compute_cumulative_returns(df)
 
     if cum.empty:
         return _no_data_fig("Risk vs Return — Animated")
 
+    # pick the date that corresponds to the current Player position
     dates = sorted(cum["date_str"].unique())
     date = dates[min(int(frame_idx), len(dates) - 1)]
 
+    # get cumulative return values up to this frame's date
     frame_data = cum[cum["date_str"] == date][
         ["symbol", "cumulative_return", "sector", "company_name"]
     ].copy()
 
+    # compute annualized volatility using only data up to this frame's date
     vol_to_date = data.compute_volatility(df[df["date"] <= pd.Timestamp(date)])
     frame_data = frame_data.merge(vol_to_date, on="symbol", how="left")
 
-    # fixed axis ranges so animation doesn't jump
+    # fix axis ranges across all frames so bubbles don't jump around during animation
     all_cum = cum["cumulative_return"]
     all_vol = data.compute_volatility(df)["volatility"]
 
@@ -134,16 +147,17 @@ def make_animated_scatter(df, frame_idx):
     )
     fig.update_traces(textposition="top center", marker=dict(size=18))
     fig.add_vline(x=0, line_dash="dash", line_color="gray", opacity=0.4,
-                  annotation_text="Break-even")
+                  annotation_text="Break-even")  # x=0 → no gain/loss
     fig.add_hline(y=all_vol.mean(), line_dash="dot", line_color="gray", opacity=0.4,
-                  annotation_text="Avg Vol")
+                  annotation_text="Avg Vol")     # horizontal average volatility reference
     fig.update_xaxes(range=[all_cum.min() - 0.05, all_cum.max() + 0.05])
     fig.update_yaxes(range=[0, all_vol.max() + 0.1])
     fig.update_layout(height=520)
     return pn.pane.Plotly(fig)
 
 
-# viz 4 — rolling volatility over time
+# --- Viz 4 — Rolling Volatility (Rolling Volatility tab) ---
+# Shows how each stock's risk level changes over time using a rolling std window
 def make_rolling_volatility_chart(df, window):
     d = data.compute_rolling_volatility(df, int(window)).dropna(subset=["rolling_vol"])
 
@@ -167,7 +181,8 @@ def make_rolling_volatility_chart(df, window):
     return pn.pane.Plotly(fig)
 
 
-# kpi row — reactive numeric metric cards shown above the tabs
+# --- KPI Cards (shown above all tabs) ---
+# Five summary metric cards: best/worst return, most volatile, avg daily return, trading days
 def make_kpi_section(df):
     if df.empty:
         return pn.pane.Markdown("*No data for selected filters*")
@@ -175,10 +190,10 @@ def make_kpi_section(df):
     _, stock_returns = data.compute_sector_returns(df)
     vol = data.compute_volatility(df)
 
-    best  = stock_returns.loc[stock_returns["total_return"].idxmax()]
-    worst = stock_returns.loc[stock_returns["total_return"].idxmin()]
+    best     = stock_returns.loc[stock_returns["total_return"].idxmax()]
+    worst    = stock_returns.loc[stock_returns["total_return"].idxmin()]
     most_vol = vol.loc[vol["volatility"].idxmax()]
-    avg_ret = df["daily_return"].mean()
+    avg_ret  = df["daily_return"].mean()
 
     def card(label, value_str, color):
         return pn.pane.HTML(f"""
@@ -196,10 +211,10 @@ def make_kpi_section(df):
     worst_color = "#e74c3c" if worst["total_return"] <= 0 else "#2ecc71"
 
     return pn.Row(
-        card(f"Best Return · {best['symbol']}",   f"{best['total_return']:+.1%}",  best_color),
-        card(f"Worst Return · {worst['symbol']}", f"{worst['total_return']:+.1%}", worst_color),
-        card(f"Most Volatile · {most_vol['symbol']}", f"{most_vol['volatility']:.1%}", "#e67e22"),
-        card("Avg Daily Return", f"{avg_ret:+.3%}", "#3498db"),
-        card("Trading Days", str(df["date"].nunique()), "#9b59b6"),
+        card(f"Best Return · {best['symbol']}",       f"{best['total_return']:+.1%}",     best_color),
+        card(f"Worst Return · {worst['symbol']}",     f"{worst['total_return']:+.1%}",    worst_color),
+        card(f"Most Volatile · {most_vol['symbol']}", f"{most_vol['volatility']:.1%}",   "#e67e22"),
+        card("Avg Daily Return",                      f"{avg_ret:+.3%}",                 "#3498db"),
+        card("Trading Days",                          str(df["date"].nunique()),          "#9b59b6"),
         sizing_mode="stretch_width",
     )

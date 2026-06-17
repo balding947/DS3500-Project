@@ -106,6 +106,24 @@ Left joins keep every trading day; missing news appears as `NaN`, not a dropped 
 | `sentiment_score_mean`, `sentiment_score_std` | news | Daily sentiment stats |
 | `ticker_sentiment_mean`, `article_count`, `dominant_sentiment_label` | news | Per-ticker sentiment |
 
+## Running the Dashboard
+
+Make sure the pipeline has been run first (so `data/processed/merged_dataset.csv.gz` exists), then:
+
+```bash
+panel serve ui.py --show
+```
+
+This opens the dashboard automatically in your browser at `http://localhost:5006/ui`.
+
+The dashboard has four tabs:
+- **Viz 1 — Overview** — all 10 stocks indexed to 100, filterable by sector/ticker/date
+- **Viz 2 — Stock Drill-Down** — candlestick chart with volume and sentiment for one stock
+- **Viz 3 — Risk/Return Animation** — animated scatter of cumulative return vs volatility (use the Player widget in the sidebar)
+- **Viz 4 — Rolling Volatility** — rolling annualized volatility with configurable window
+
+Use the sidebar filters to narrow by date range, sector, ticker, or minimum volume. Click **Reset All Filters** to restore defaults.
+
 ## Testing
 
 ```bash
