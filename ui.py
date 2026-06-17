@@ -180,7 +180,7 @@ sidebar_reactive = pn.bind(make_sidebar, tabs.param.active)
 # --- Dashboard layout ---
 
 layout = pn.template.FastListTemplate(
-    title="S&P 500 Market Dashboard — Samuel Yao",
+    title="S&P 500 Market Dashboard",
     sidebar=[pn.Column(sidebar_reactive)],
     main=[pn.Column(
         pn.pane.Markdown("## Key Metrics", margin=(12, 0, 4, 12)),
